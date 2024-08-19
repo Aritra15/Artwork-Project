@@ -9,6 +9,7 @@ contract ArtWorkManagement is ERC721 {
     address public owner;
     uint256 public totalArtWorks;
     uint256 public totalOrders;
+    uint256 public totalBids;
 
     constructor(address _owner) ERC721("ArtWorkManagement", "AWM") {
         owner = _owner;
@@ -29,12 +30,13 @@ contract ArtWorkManagement is ERC721 {
         bool isForSale;
         bool isPremium;
         uint256 bidDeadline;
+        bid highestBid;
     }
 
     struct bid {
         uint256 id;
         uint256 artworkId;
-        uint256 price;
+        uint256 amount;
         address bidder;
     }
 
@@ -120,7 +122,8 @@ contract ArtWorkManagement is ERC721 {
             false,
             false,
             isPremium,
-            0
+            0,
+            bid(0, 0, 0, address(0))
         );
         artworks[id] = newArtWork;
 
@@ -246,22 +249,21 @@ contract ArtWorkManagement is ERC721 {
                 msg.sender == owner,
             "You are not authorized to update this order"
         );
-        
 
         // Update the delivery status
         if (order.status == DeliveryStatus.InWarehouse) {
             order.status = DeliveryStatus.InTransit;
         } else if (order.status == DeliveryStatus.InTransit) {
-            
             //require the remaining amound is paid
-            require( msg.value == order.amountRemaining, "Please pay the remaining amount to update the delivery status");
-            
+            require(
+                msg.value == order.amountRemaining,
+                "Please pay the remaining amount to update the delivery status"
+            );
+
             order.status = DeliveryStatus.Delivered;
 
             // Transfer the remaining amount to the current owner
-            payable(artworks[order.artworkId].currentOwner).transfer(
-                msg.value
-            );
+            payable(artworks[order.artworkId].currentOwner).transfer(msg.value);
 
             // Transfer the ownership of the artwork to the buyer
             _transfer(
@@ -275,5 +277,71 @@ contract ArtWorkManagement is ERC721 {
         } else {
             revert("Order is already delivered or in an invalid state");
         }
+    }
+
+    function startBid(uint256 id, uint256 bidDeadline) public {
+        ArtWork storage artwork = artworks[id];
+        require(artwork.isPremium == true, "Artwork is not premium");
+        require(
+            ownerOf(id) == msg.sender,
+            "You are not the owner of this artwork"
+        );
+
+        artwork.isForSale = true;
+        artwork.bidDeadline = bidDeadline;
+    }
+
+    function bidForArtWork(uint256 id, uint256 amount) public {
+        ArtWork storage artwork = artworks[id];
+        require(artwork.isForSale == true, "Artwork is not for sale");
+        require(artwork.bidDeadline > block.timestamp, "Bid deadline is over");
+        require(artwork.isPremium == true, "Artwork is not premium");
+        require(
+            amount > artwork.highestBid.amount && amount > artwork.price,
+            "Please bid higher than the highest bid and the price"
+        );
+        require(
+            msg.sender != artwork.currentOwner,
+            "You are the owner of this artwork"
+        );
+
+        totalBids++;
+        uint256 bidId = totalBids;
+
+        bid memory newBid = bid(bidId, id, amount, msg.sender);
+        bids[id][bidId] = newBid;
+
+        emit ArtWorkBid(bidId, amount, msg.sender);
+    }
+
+    function acceptBid(uint256 id) public {
+        ArtWork storage artwork = artworks[id];
+        require(
+            ownerOf(id) == msg.sender,
+            "You are not the owner of this artwork"
+        );
+        require(artwork.isPremium == true, "Artwork is not premium");
+        require(artwork.bidDeadline < block.timestamp, "Bid deadline is not over");
+        require(artwork.highestBid.amount > 0, "No bids for this artwork");
+
+        bid storage acceptedBid = artwork.highestBid;
+        
+        // Transfer the ownership of the artwork to the buyer
+        _transfer(artwork.currentOwner, acceptedBid.bidder, id);
+
+        // Transfer the amount to the current owner
+        payable(artwork.currentOwner).transfer(acceptedBid.amount);
+
+        // Update the current owner
+        artwork.currentOwner = acceptedBid.bidder;
+
+        emit ArtWorkDelivered(acceptedBid.id, DeliveryStatus.Delivered);
+
+        artwork.highestBid = bid(0, 0, 0, address(0));
+        artwork.isForSale = false;
+        artwork.bidDeadline = 0;
+        emit ArtWorkNotForSale(id);
+
+
     }
 }
