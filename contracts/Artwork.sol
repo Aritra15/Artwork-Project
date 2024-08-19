@@ -314,7 +314,7 @@ contract ArtWorkManagement is ERC721 {
         emit ArtWorkBid(bidId, amount, msg.sender);
     }
 
-    function acceptBid(uint256 id) public {
+    function acceptBid(uint256 id) public payable {
         ArtWork storage artwork = artworks[id];
         require(
             ownerOf(id) == msg.sender,
@@ -343,5 +343,169 @@ contract ArtWorkManagement is ERC721 {
         emit ArtWorkNotForSale(id);
 
 
+    }
+
+    function getArtWork(uint256 id)
+        public
+        view
+        returns (
+            uint256,
+            string memory,
+            string memory,
+            uint256,
+            string memory,
+            address,
+            address,
+            bool,
+            bool,
+            bool,
+            uint256,
+            bid memory
+        )
+    {
+        ArtWork memory artwork = artworks[id];
+        return (
+            artwork.id,
+            artwork.name,
+            artwork.description,
+            artwork.price,
+            artwork.imageURI,
+            artwork.creator,
+            artwork.currentOwner,
+            artwork.isVerified,
+            artwork.isForSale,
+            artwork.isPremium,
+            artwork.bidDeadline,
+            artwork.highestBid
+        );
+    }
+
+    function getOrder(uint256 id)
+        public
+        view
+        returns (
+            uint256,
+            uint256,
+            uint256,
+            uint256,
+            address,
+            DeliveryStatus
+        )
+    {
+        Order memory order = orders[id];
+        return (
+            order.id,
+            order.artworkId,
+            order.amountPaid,
+            order.amountRemaining,
+            order.buyer,
+            order.status
+        );
+    }
+
+    function getBid(uint256 artworkId, uint256 bidId)
+        public
+        view
+        returns (bid memory)
+    {
+        return bids[artworkId][bidId];
+    }
+
+    function getMyArtWorks() public view returns (uint256[] memory) {
+        uint256[] memory myArtWorks = new uint256[](balanceOf(msg.sender));
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalArtWorks; i++) {
+            if (ownerOf(i) == msg.sender) {
+                myArtWorks[counter] = i;
+                counter++;
+            }
+        }
+        return myArtWorks;
+    }
+
+    function getMyOrders() public view returns (uint256[] memory) {
+        uint256[] memory myOrders = new uint256[](totalOrders);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalOrders; i++) {
+            if (orders[i].buyer == msg.sender) {
+                myOrders[counter] = i;
+                counter++;
+            }
+        }
+        return myOrders;
+    }
+
+    function getMyBids() public view returns (uint256[] memory) {
+        uint256[] memory myBids = new uint256[](totalBids);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalBids; i++) {
+            if (bids[i][i].bidder == msg.sender) {
+                myBids[counter] = i;
+                counter++;
+            }
+        }
+        return myBids;
+    }
+
+    //get all artworks for sell not owned by me
+    function getArtWorksForSale() public view returns (uint256[] memory) {
+        uint256[] memory artWorksForSale = new uint256[](totalArtWorks);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalArtWorks; i++) {
+            if (
+                ownerOf(i) != msg.sender &&
+                artworks[i].isForSale == true
+            ) {
+                artWorksForSale[counter] = i;
+                counter++;
+            }
+        }
+        uint256[] memory result = new uint256[](counter);
+        for (uint256 i = 0; i < counter; i++) {
+            result[i] = artWorksForSale[i];
+        }
+        return result;
+    }
+
+    //get premium artworks for bid
+    function getPremiumArtWorksForBid() public view returns (uint256[] memory) {
+        uint256[] memory premiumArtWorksForBid = new uint256[](totalArtWorks);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalArtWorks; i++) {
+            if (
+                ownerOf(i) != msg.sender &&
+                artworks[i].isForSale == true &&
+                artworks[i].isPremium == true
+            ) {
+                premiumArtWorksForBid[counter] = i;
+                counter++;
+            }
+        }
+        uint256[] memory result = new uint256[](counter);
+        for (uint256 i = 0; i < counter; i++) {
+            result[i] = premiumArtWorksForBid[i];
+        }
+        return result;
+    }
+
+    //get all bids for a premium artwork
+    function getBidsForArtWork(uint256 id)
+        public
+        view
+        returns (uint256[] memory)
+    {
+        uint256[] memory bidsForArtWork = new uint256[](totalBids);
+        uint256 counter = 0;
+        for (uint256 i = 0; i < totalBids; i++) {
+            if (bids[id][i].artworkId == id) {
+                bidsForArtWork[counter] = i;
+                counter++;
+            }
+        }
+        uint256[] memory result = new uint256[](counter);
+        for (uint256 i = 0; i < counter; i++) {
+            result[i] = bidsForArtWork[i];
+        }
+        return result;
     }
 }
