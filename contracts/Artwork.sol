@@ -265,8 +265,8 @@ contract ArtWorkManagement is ERC721 {
             // Transfer the remaining amount to the current owner
             payable(artworks[order.artworkId].currentOwner).transfer(msg.value);
 
-            // Transfer the ownership of the artwork to the buyer
-            _transfer(
+            // Transfer the ownership of the nft to the buyer
+            safeTransferFrom(
                 artworks[order.artworkId].currentOwner,
                 order.buyer,
                 order.artworkId
@@ -327,7 +327,7 @@ contract ArtWorkManagement is ERC721 {
         bid storage acceptedBid = artwork.highestBid;
         
         // Transfer the ownership of the artwork to the buyer
-        _transfer(artwork.currentOwner, acceptedBid.bidder, id);
+        safeTransferFrom(artwork.currentOwner, acceptedBid.bidder, id);
 
         // Transfer the amount to the current owner
         payable(artwork.currentOwner).transfer(acceptedBid.amount);
