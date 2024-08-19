@@ -454,7 +454,8 @@ contract ArtWorkManagement is ERC721 {
         for (uint256 i = 0; i < totalArtWorks; i++) {
             if (
                 ownerOf(i) != msg.sender &&
-                artworks[i].isForSale == true
+                artworks[i].isForSale == true &&
+                artworks[i].isPremium == false
             ) {
                 artWorksForSale[counter] = i;
                 counter++;
